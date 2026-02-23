@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pathology FAQ Chatbot</title>
+  <style>
+    /* ----- Dark mode (default) ----- */
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface-hover: #1e2a3a;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --accent-hover: #79b8ff;
+      --green: #3fb950;
+      --radius: 10px;
+      --widget-width: 380px;
+      --widget-height: 520px;
+      --panel-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      --toggle-shadow: 0 4px 16px rgba(88, 166, 255, 0.4);
+      --content-bg: #141c26;
+    }
+
+    /* ----- Light mode (system preference) ----- */
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f0f2f5;
+        --surface: #ffffff;
+        --surface-hover: #e8eaed;
+        --border: #dadce0;
+        --text: #202124;
+        --muted: #5f6368;
+        --accent: #1a73e8;
+        --accent-hover: #1765cc;
+        --green: #1e8e3e;
+        --panel-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        --toggle-shadow: 0 4px 16px rgba(26, 115, 232, 0.35);
+        --content-bg: #f8f9fa;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Demo page content (optional – remove when embedding) */
+    .demo-page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      padding-bottom: 100px;
+    }
+    .demo-page h1 { font-size: 1.5rem; margin: 0 0 8px 0; }
+    .demo-page p { color: var(--muted); font-size: 0.9rem; }
+
+    /* ----- Responsive: mobile first ----- */
+    /* Mobile: default */
+    .chatbot-widget {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 9999;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    .chatbot-panel {
+      position: absolute;
+      bottom: calc(52px + 10px);
+      right: 0;
+      left: auto;
+      width: calc(100vw - 32px);
+      max-width: 360px;
+      height: 70vh;
+      max-height: 520px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--panel-shadow);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chatbot-toggle {
+      width: 52px;
+      height: 52px;
+    }
+    .chatbot-toggle svg { width: 26px; height: 26px; }
+
+    /* Tablet: 480px and up */
+    @media (min-width: 480px) {
+      .chatbot-widget { bottom: 20px; right: 20px; }
+      .chatbot-panel {
+        bottom: calc(56px + 12px);
+        width: 380px;
+        max-width: calc(100vw - 40px);
+        height: 520px;
+        max-height: calc(100vh - 100px);
+      }
+      .chatbot-toggle { width: 56px; height: 56px; }
+      .chatbot-toggle svg { width: 28px; height: 28px; }
+    }
+
+    /* Desktop: 1024px and up */
+    @media (min-width: 1024px) {
+      .chatbot-widget { bottom: 24px; right: 24px; }
+      .chatbot-panel {
+        width: var(--widget-width);
+        max-width: 420px;
+        height: var(--widget-height);
+        max-height: calc(100vh - 100px);
+      }
+      .demo-page { padding: 32px 24px; padding-bottom: 120px; }
+      .demo-page h1 { font-size: 1.75rem; }
+      .demo-page p { font-size: 1rem; }
+    }
+    .chatbot-panel.open {
+      display: flex;
+      animation: panelIn 0.2s ease-out;
+    }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Panel position for mobile: allow full-width on very small screens */
+    @media (max-width: 479px) {
+      .chatbot-panel { right: 0; left: 0; margin: 0 auto; }
+    }
+
+    .chatbot-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chatbot-panel-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .chatbot-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .chatbot-close:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+    .chatbot-close svg { width: 20px; height: 20px; }
+
+    .chatbot-search-wrap {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chatbot-search {
+      width: 100%;
+      padding: 10px 12px 10px 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .chatbot-search::placeholder { color: var(--muted); }
+    .chatbot-search:focus { border-color: var(--accent); }
+    .chatbot-search-wrap { position: relative; }
+    .chatbot-search-wrap .search-icon {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .chatbot-list {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px;
+    }
+    .chatbot-list .accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .chatbot-list .no-results {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .chatbot-list .accordion-item {
+      border-bottom: 1px solid var(--border);
+    }
+    .chatbot-list .accordion-item:last-child { border-bottom: none; }
+    .chatbot-list .accordion-item.hidden { display: none; }
+
+    .accordion-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: none;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .accordion-header:hover { background: var(--surface-hover); }
+    .accordion-item.open .accordion-header {
+      background: var(--surface-hover);
+      border-bottom: 1px solid var(--border);
+    }
+    .accordion-header .q-text { flex: 1; min-width: 0; }
+    .accordion-header .chevron-wrap {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+    .accordion-header .chevron {
+      width: 18px;
+      height: 18px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .accordion-item.open .accordion-header .chevron {
+      transform: rotate(180deg);
+      color: var(--accent);
+    }
+    .audio-btn {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      color: var(--accent);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .audio-btn:hover { background: var(--accent); color: #fff; }
+    .audio-btn.playing { background: var(--green); color: #fff; border-color: var(--green); }
+    .audio-btn svg { width: 14px; height: 14px; }
+    .accordion-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out;
+    }
+    .accordion-item.open .accordion-body {
+      max-height: 400px;
+      transition: max-height 0.35s ease-in;
+    }
+    .accordion-content {
+      padding: 12px 16px;
+      background: var(--content-bg);
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    /* Toggle button */
+    .chatbot-toggle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--toggle-shadow);
+      transition: background 0.15s, transform 0.15s;
+    }
+    .chatbot-toggle:hover { background: var(--accent-hover); }
+    .chatbot-toggle:active { transform: scale(0.96); }
+    .chatbot-toggle svg { width: 28px; height: 28px; }
+    .chatbot-widget.panel-open .chatbot-toggle {
+      background: var(--muted);
+    }
+    .chatbot-widget.panel-open .chatbot-toggle .icon-open { display: none; }
+    .chatbot-widget.panel-open .chatbot-toggle .icon-close { display: block; }
+    .chatbot-toggle .icon-close { display: none; }
+  </style>
+</head>
+<body>
+  <div class="demo-page">
+    <h1>Welcome</h1>
+    <p>We're here to help. If you have any questions about pathology reports, sample collection, or lab procedures, just tap the chat button in the corner—we’d be glad to assist.</p>
+  </div>
+
+  <div class="chatbot-widget" id="chatbotWidget">
+    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
+      <div class="chatbot-panel-header">
+        <h2>Pathology FAQ</h2>
+        <button type="button" class="chatbot-close" id="chatbotClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="chatbot-search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" class="chatbot-search" id="chatbotSearch" placeholder="Search by keyword in questions..." aria-label="Search questions">
+      </div>
+      <div class="chatbot-list" id="chatbotList">
+        <div class="accordion" id="accordion"></div>
+        <div class="no-results hidden" id="noResults">No questions match your search.</div>
+      </div>
+    </div>
+    <button type="button" class="chatbot-toggle" id="chatbotToggle" aria-label="Open FAQ chat">
+      <span class="icon-open"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg></span>
+      <span class="icon-close"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 19 17.59 13.41 12z"/></svg></span>
+    </button>
+  </div>
+
+  <script src="faq_data.js"></script>
+  <script>
+    (function () {
+      const widget = document.getElementById('chatbotWidget');
+      const panel = document.getElementById('chatbotPanel');
+      const toggleBtn = document.getElementById('chatbotToggle');
+      const closeBtn = document.getElementById('chatbotClose');
+      const searchInput = document.getElementById('chatbotSearch');
+      const accordionEl = document.getElementById('accordion');
+      const noResultsEl = document.getElementById('noResults');
+      let currentAudio = null;
+      let itemElements = [];
+
+      function playIcon() {
+        return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      }
+      function stopIcon() {
+        return '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+      }
+      function chevronIcon() {
+        return '<svg class="chevron" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>';
+      }
+      function escapeHtml(s) {
+        const div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      function togglePanel(open) {
+        const isOpen = open !== undefined ? open : !panel.classList.contains('open');
+        panel.classList.toggle('open', isOpen);
+        widget.classList.toggle('panel-open', isOpen);
+        panel.setAttribute('aria-hidden', !isOpen);
+        toggleBtn.setAttribute('aria-label', isOpen ? 'Close FAQ chat' : 'Open FAQ chat');
+        if (isOpen) searchInput.focus();
+      }
+
+      toggleBtn.addEventListener('click', function () { togglePanel(); });
+      closeBtn.addEventListener('click', function () { togglePanel(false); });
+
+      function filterQuestions() {
+        const q = (searchInput.value || '').trim().toLowerCase();
+        let visible = 0;
+        itemElements.forEach(function (el) {
+          const text = (el.getAttribute('data-question') || '').toLowerCase();
+          const match = !q || text.indexOf(q) !== -1;
+          el.classList.toggle('hidden', !match);
+          if (match) visible++;
+        });
+        noResultsEl.classList.toggle('hidden', visible > 0);
+      }
+      searchInput.addEventListener('input', filterQuestions);
+      searchInput.addEventListener('keydown', function (e) { if (e.key === 'Escape') searchInput.blur(); });
+
+      function toggleAudio(index, btn) {
+        const item = FAQ_DATA[index];
+        if (currentAudio && currentAudio.src.endsWith(item.audio)) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+          currentAudio = null;
+          btn.classList.remove('playing');
+          btn.innerHTML = playIcon();
+          return;
+        }
+        if (currentAudio) {
+          currentAudio.pause();
+          document.querySelectorAll('.audio-btn.playing').forEach(function (b) {
+            b.classList.remove('playing');
+            b.innerHTML = playIcon();
+          });
+        }
+        currentAudio = new Audio(item.audio);
+        currentAudio.play();
+        btn.classList.add('playing');
+        btn.innerHTML = stopIcon();
+        currentAudio.onended = function () {
+          btn.classList.remove('playing');
+          btn.innerHTML = playIcon();
+          currentAudio = null;
+        };
+        currentAudio.onerror = function () {
+          btn.classList.remove('playing');
+          btn.innerHTML = playIcon();
+          currentAudio = null;
+        };
+      }
+
+      FAQ_DATA.forEach(function (item, index) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'accordion-item';
+        itemEl.setAttribute('data-index', index);
+        itemEl.setAttribute('data-question', item.question);
+        itemEl.innerHTML =
+          '<div class="accordion-header" role="button" tabindex="0" aria-expanded="false">' +
+            '<span class="q-text">' + escapeHtml(item.question) + '</span>' +
+            '<button type="button" class="audio-btn" title="Play answer" aria-label="Play answer">' + playIcon() + '</button>' +
+            '<span class="chevron-wrap">' + chevronIcon() + '</span>' +
+          '</div>' +
+          '<div class="accordion-body">' +
+            '<div class="accordion-content">' + escapeHtml(item.answer) + '</div>' +
+          '</div>';
+        accordionEl.appendChild(itemEl);
+        itemElements.push(itemEl);
+
+        const header = itemEl.querySelector('.accordion-header');
+        const audioBtn = itemEl.querySelector('.audio-btn');
+
+        function toggleItem() {
+          const isOpen = itemEl.classList.contains('open');
+          document.querySelectorAll('#accordion .accordion-item.open').forEach(function (openItem) {
+            openItem.classList.remove('open');
+            openItem.querySelector('.accordion-header').setAttribute('aria-expanded', 'false');
+          });
+          if (!isOpen) {
+            itemEl.classList.add('open');
+            header.setAttribute('aria-expanded', 'true');
+          }
+        }
+        header.addEventListener('click', function (e) {
+          if (e.target.closest('.audio-btn')) return;
+          toggleItem();
+        });
+        header.addEventListener('keydown', function (e) {
+          if (e.target.closest('.audio-btn')) return;
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleItem(); }
+        });
+        audioBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          toggleAudio(index, audioBtn);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
