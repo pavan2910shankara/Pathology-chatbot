@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1419">
   <title>Pathology FAQ Chatbot</title>
   <style>
     /* ----- Dark mode (default) ----- */
@@ -43,13 +44,19 @@
     }
 
     * { box-sizing: border-box; }
+    html {
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
+    }
     body {
       margin: 0;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      min-height: 100dvh;
       line-height: 1.5;
+      overflow-x: hidden;
     }
 
     /* Demo page content (optional – remove when embedding) */
@@ -58,32 +65,37 @@
       margin: 0 auto;
       padding: 24px 16px;
       padding-bottom: 100px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
     }
     .demo-page h1 { font-size: 1.5rem; margin: 0 0 8px 0; }
     .demo-page p { color: var(--muted); font-size: 0.9rem; }
 
     /* ----- Responsive: mobile first ----- */
-    /* Mobile: default */
+    /* Mobile: default (under 480px) */
     .chatbot-widget {
       position: fixed;
-      bottom: 16px;
-      right: 16px;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      right: max(12px, env(safe-area-inset-right));
+      left: auto;
       z-index: 9999;
       font-family: 'Segoe UI', system-ui, sans-serif;
     }
     .chatbot-panel {
-      position: absolute;
-      bottom: calc(52px + 10px);
+      position: fixed;
+      top: 0;
+      left: 0;
       right: 0;
-      left: auto;
-      width: calc(100vw - 32px);
-      max-width: 360px;
-      height: 70vh;
-      max-height: 520px;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      border: none;
+      border-left: 1px solid var(--border);
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--panel-shadow);
+      box-shadow: none;
       display: none;
       flex-direction: column;
       overflow: hidden;
@@ -91,6 +103,8 @@
     .chatbot-toggle {
       width: 52px;
       height: 52px;
+      min-width: 52px;
+      min-height: 52px;
     }
     .chatbot-toggle svg { width: 26px; height: 26px; }
 
@@ -98,13 +112,21 @@
     @media (min-width: 480px) {
       .chatbot-widget { bottom: 20px; right: 20px; }
       .chatbot-panel {
+        position: absolute;
+        top: auto;
+        left: auto;
+        right: 0;
         bottom: calc(56px + 12px);
         width: 380px;
         max-width: calc(100vw - 40px);
         height: 520px;
         max-height: calc(100vh - 100px);
+        max-height: calc(100dvh - 100px);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: var(--panel-shadow);
       }
-      .chatbot-toggle { width: 56px; height: 56px; }
+      .chatbot-toggle { width: 56px; height: 56px; min-width: 56px; min-height: 56px; }
       .chatbot-toggle svg { width: 28px; height: 28px; }
     }
 
@@ -124,14 +146,12 @@
     .chatbot-panel.open {
       display: flex;
       animation: panelIn 0.2s ease-out;
+      z-index: 10001;
     }
+    .chatbot-toggle { z-index: 10000; }
     @keyframes panelIn {
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
-    }
-    /* Panel position for mobile: allow full-width on very small screens */
-    @media (max-width: 479px) {
-      .chatbot-panel { right: 0; left: 0; margin: 0 auto; }
     }
 
     .chatbot-panel-header {
@@ -139,6 +159,9 @@
       align-items: center;
       justify-content: space-between;
       padding: 14px 16px;
+      padding-top: max(14px, env(safe-area-inset-top));
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
@@ -148,10 +171,12 @@
       font-weight: 600;
     }
     .chatbot-close {
-      width: 32px;
-      height: 32px;
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       background: transparent;
       color: var(--muted);
       cursor: pointer;
@@ -159,49 +184,58 @@
       align-items: center;
       justify-content: center;
       transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .chatbot-close:hover {
       background: var(--surface-hover);
       color: var(--text);
     }
-    .chatbot-close svg { width: 20px; height: 20px; }
+    .chatbot-close svg { width: 22px; height: 22px; }
 
     .chatbot-search-wrap {
       padding: 10px 12px;
+      padding-left: max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
     .chatbot-search {
       width: 100%;
-      padding: 10px 12px 10px 36px;
+      padding: 12px 12px 12px 40px;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--bg);
       color: var(--text);
-      font-size: 0.9rem;
+      font-size: 16px;
       font-family: inherit;
       outline: none;
       transition: border-color 0.15s;
+      -webkit-appearance: none;
+      appearance: none;
     }
     .chatbot-search::placeholder { color: var(--muted); }
     .chatbot-search:focus { border-color: var(--accent); }
     .chatbot-search-wrap { position: relative; }
     .chatbot-search-wrap .search-icon {
       position: absolute;
-      left: 20px;
+      left: 14px;
       top: 50%;
       transform: translateY(-50%);
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       color: var(--muted);
       pointer-events: none;
     }
 
     .chatbot-list {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 8px;
+      padding-left: max(8px, env(safe-area-inset-left));
+      padding-right: max(8px, env(safe-area-inset-right));
+      -webkit-overflow-scrolling: touch;
     }
     .chatbot-list .accordion {
       display: flex;
@@ -222,28 +256,31 @@
     }
     .chatbot-list .accordion-item:last-child { border-bottom: none; }
     .chatbot-list .accordion-item.hidden { display: none; }
+    .chatbot-list .no-results.hidden { display: none; }
 
     .accordion-header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       width: 100%;
-      padding: 12px 14px;
+      padding: 14px 16px;
+      min-height: 48px;
       background: var(--surface);
       border: none;
       color: var(--text);
-      font-size: 0.9rem;
+      font-size: clamp(0.875rem, 2.5vw, 0.95rem);
       font-family: inherit;
       text-align: left;
       cursor: pointer;
       transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .accordion-header:hover { background: var(--surface-hover); }
     .accordion-item.open .accordion-header {
       background: var(--surface-hover);
       border-bottom: 1px solid var(--border);
     }
-    .accordion-header .q-text { flex: 1; min-width: 0; }
+    .accordion-header .q-text { flex: 1; min-width: 0; word-break: break-word; }
     .accordion-header .chevron-wrap {
       flex-shrink: 0;
       display: flex;
@@ -261,8 +298,10 @@
     }
     .audio-btn {
       flex-shrink: 0;
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      min-height: 40px;
       border-radius: 50%;
       border: 1px solid var(--border);
       background: rgba(255,255,255,0.05);
@@ -272,10 +311,11 @@
       align-items: center;
       justify-content: center;
       transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .audio-btn:hover { background: var(--accent); color: #fff; }
     .audio-btn.playing { background: var(--green); color: #fff; border-color: var(--green); }
-    .audio-btn svg { width: 14px; height: 14px; }
+    .audio-btn svg { width: 18px; height: 18px; }
     .accordion-body {
       max-height: 0;
       overflow: hidden;
@@ -286,11 +326,14 @@
       transition: max-height 0.35s ease-in;
     }
     .accordion-content {
-      padding: 12px 16px;
+      padding: 14px 16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
       background: var(--content-bg);
-      font-size: 0.85rem;
+      font-size: clamp(0.8125rem, 2.2vw, 0.9rem);
       white-space: pre-wrap;
-      line-height: 1.5;
+      word-break: break-word;
+      line-height: 1.55;
     }
 
     /* Toggle button */
@@ -351,6 +394,11 @@
   <script src="faq_data.js"></script>
   <script>
     (function () {
+      if (typeof FAQ_DATA === 'undefined') {
+        console.error('Pathology FAQ: faq_data.js did not load. Ensure faq_data.js is in the same folder as index.html.');
+        document.getElementById('chatbotList').innerHTML = '<p class="no-results" style="padding:24px;color:var(--muted)">FAQ data could not be loaded. Please check that faq_data.js is available.</p>';
+        return;
+      }
       const widget = document.getElementById('chatbotWidget');
       const panel = document.getElementById('chatbotPanel');
       const toggleBtn = document.getElementById('chatbotToggle');
